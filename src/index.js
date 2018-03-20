@@ -1,5 +1,6 @@
 import AddWmsPanel from './Container/AddWmsPanel/AddWmsPanel.jsx';
 import AddWmsLayerEntry from './Container/AddWmsPanel/AddWmsLayerEntry/AddWmsLayerEntry.jsx';
+import CoordinateTransformPanel from './Container/CoordinateTransformPanel/CoordinateTransformPanel.jsx';
 import SimpleButton from './Button/SimpleButton/SimpleButton.jsx';
 import ToggleButton from './Button/ToggleButton/ToggleButton.jsx';
 import ToggleGroup from './Button/ToggleGroup/ToggleGroup.jsx';
@@ -47,6 +48,7 @@ import timeLayerAware from './HigherOrderComponent/TimeLayerAware/TimeLayerAware
 export {
   AddWmsLayerEntry,
   AddWmsPanel,
+  CoordinateTransformPanel,
   CircleMenu,
   SimpleButton,
   ToggleButton,

@@ -6,6 +6,8 @@ const Option = AutoComplete.Option;
 import UrlUtil from '../../Util/UrlUtil/UrlUtil';
 import Logger from '../../Util/Logger';
 
+// TODO: add render display field template
+
 /**
  * Class representing a combo to choose coordinate projection system via a
  * dropdown menu and / or autocompletion

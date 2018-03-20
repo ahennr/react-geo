@@ -1,0 +1,64 @@
+@import '../../style/variables.less';
+
+.transform-panel {
+  height: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 5px;
+
+  .origin-crs-card {
+    flex: 0 1 auto;
+    margin-bottom: 5px;
+    border: solid 1px @primary-color;
+  }
+
+  .target-crs-card {
+    flex: 1 1 auto;
+    border: solid 1px @primary-color;
+  }
+
+  .transform-form .row-div {
+    display: flex;
+    justify-content: left;
+    align-items: baseline;
+    width: 100%;
+    &.title-div {
+      padding-bottom: 5px;
+    }
+    .label-span {
+      width: 30%;
+    }
+    >.ant-input-number, >.ant-input {
+      width: 100px;
+    }
+  }
+
+  .transform-form .flex-row-div {
+    display: flex;
+    justify-content: left;
+    align-items: baseline;
+    padding-right: 5px;
+    padding-bottom: 5px;
+    .flex-combo {
+      flex: 1 1 auto;
+      .ant-select-selection {
+        background: white;
+        cursor: pointer;
+      }
+    }
+    .label-span {
+      width: 30%;
+      margin-right: 2px;
+    }
+  }
+
+  .transform-form .radio-div {
+    padding-bottom: 5px;
+  }
+
+  .crs-card {
+    width: 100%;
+    flex: 1;
+    border: solid 1px @primary-color;
+  }
+}
