@@ -7,6 +7,7 @@ import MeasureButton from './Button/MeasureButton/MeasureButton.jsx';
 import DigitizeButton from './Button/DigitizeButton/DigitizeButton.jsx';
 import CoordinateReferenceSystemCombo from './Field/CoordinateReferenceSystemCombo/CoordinateReferenceSystemCombo.jsx';
 import NominatimSearch from './Field/NominatimSearch/NominatimSearch.jsx';
+import RemoteSelectField from './Field/RemoteSelectField/RemoteSelectField.jsx';
 import ScaleCombo from './Field/ScaleCombo/ScaleCombo.jsx';
 import LayerTree from './LayerTree/LayerTree.jsx';
 import LayerTreeNode from './LayerTreeNode/LayerTreeNode.jsx';
@@ -77,6 +78,7 @@ export {
   MeasureUtil,
   CoordinateReferenceSystemCombo,
   NominatimSearch,
+  RemoteSelectField,
   ObjectUtil,
   ProjectionUtil,
   StringUtil,
