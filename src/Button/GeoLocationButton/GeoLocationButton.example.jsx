@@ -9,18 +9,17 @@ import olProj from 'ol/proj';
 
 import {
   GeoLocationButton,
-  ToggleGroup
+  ToggleGroup,
+  CapabilitiesUtil
 } from '../../index.js';
 
 //
 // ***************************** SETUP *****************************************
 //
+const wmtsLayer = CapabilitiesUtil.getLayerFromWmtsCapabilties();
 const map = new OlMap({
   layers: [
-    new OlLayerTile({
-      name: 'OSM',
-      source: new OlSourceOsm()
-    })
+   wmtsLayer
   ],
   view: new OlView({
     center: olProj.fromLonLat([37.40570, 8.81566]),

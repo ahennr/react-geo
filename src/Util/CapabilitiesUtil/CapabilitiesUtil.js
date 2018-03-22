@@ -1,11 +1,14 @@
 import OlWMSCapabilities from 'ol/format/wmscapabilities';
+import OlFormatWMTSCapabilities from 'ol/format/wmtscapabilities';
 import OlSourceImageWMS from 'ol/source/imagewms';
+import OlSourceWMTS from 'ol/source/wmts';
+import OlLayerTile from 'ol/layer/tile';
 import OlLayerImage from 'ol/layer/image';
 
 import { get } from 'lodash';
 
 /**
- * Helper Class to parse capabilities of WMS layers
+ * Helper Class to parse capabilities of WMS and WMTS layers
  *
  * @class CapabilitiesUtil
  */
@@ -24,6 +27,18 @@ class CapabilitiesUtil {
       .then((data) => {
         const wmsCapabilitiesParser = new OlWMSCapabilities();
         return wmsCapabilitiesParser.read(data);
+      });
+  }
+
+  /**
+   * 
+   */
+  static parseWmtsCapabilities(capabilitiesUrl) {
+    return fetch(capabilitiesUrl)
+      .then(response => response.text())
+      .then(response => {
+        const parser = new OlFormatWMTSCapabilities();
+        return parser.read(response);
       });
   }
 
@@ -61,6 +76,31 @@ class CapabilitiesUtil {
         }
       })
     }));
+  }
+
+  /**
+   * 
+   */
+  static getLayerFromWmtsCapabilties({
+    layerName = 'WMTS Layer',
+    capabilities,
+    layerConfig = {
+      layer: 'web',
+      matrixSet: 'EPSG:3857'
+    }
+  }) {
+    if (!layerConfig) {
+      return;
+    }
+
+    const wmtsOptions = OlSourceWMTS.optionsFromCapabilities(capabilities, layerConfig);
+    const wmtsSource = new OlSourceWMTS(wmtsOptions);
+    const wmtsLayer = new OlLayerTile({
+      name: layerName,
+      source: wmtsSource
+    });
+
+    return wmtsLayer;
   }
 }
 

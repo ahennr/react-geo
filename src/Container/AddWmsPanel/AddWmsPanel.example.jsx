@@ -31,16 +31,16 @@ const map = new OlMap({
 //
 
 // Please note: CORS headers must be set on server providing capabilities document. Otherwise proxy needed.
-const WMS_CAPABILITIES_URL = 'https://ows.terrestris.de/osm/service?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities';
+const WMS_CAPABILITIES_URL = 'http://sgx.geodatenzentrum.de/wmts_topplus_web_open/1.0.0/WMTSCapabilities.xml';
 
 /**
  * fetch capabilities document onClick and re-render on success
  */
 const onClick = () => {
-  CapabilitiesUtil.parseWmsCapabilities(WMS_CAPABILITIES_URL)
-    .then(CapabilitiesUtil.getLayersFromWmsCapabilties)
-    .then((layers) => {
-      doRender(layers);
+  CapabilitiesUtil.parseWmtsCapabilities(WMS_CAPABILITIES_URL)
+    .then(capabilities => CapabilitiesUtil.getLayerFromWmtsCapabilties({capabilities, layerName: 'Test'}))
+    .then(layers => {
+      doRender([layers]);
     })
     .catch(() => message.error('Could not parse capabilities document.'));
 };
