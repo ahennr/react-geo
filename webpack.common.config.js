@@ -1,4 +1,8 @@
 const path = require('path');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+
+const devMode = process.env.NODE_ENV !== 'production'
 
 module.exports = {
   module: {
@@ -9,13 +13,13 @@ module.exports = {
     }, {
       test: /\.css$/,
       use: [
-        'style-loader',
+        devMode ? 'style-loader' : MiniCssExtractPlugin.loader,
         'css-loader'
       ]
     }, {
       test: /\.less$/,
       use: [
-        'style-loader',
+        devMode ? 'style-loader' : MiniCssExtractPlugin.loader,
         'css-loader',
         {
           loader: 'less-loader',
@@ -36,5 +40,25 @@ module.exports = {
       test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
       use: 'file-loader'
     }]
-  }
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: 'react-geo.css'
+    })
+  ],
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        styles: {
+          name: 'styles',
+          test: /\.css$/,
+          chunks: 'all',
+          enforce: true
+        }
+      }
+    },
+    minimizer: [
+      new OptimizeCSSAssetsPlugin({})
+    ]
+  },
 };

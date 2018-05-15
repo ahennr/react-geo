@@ -113,46 +113,46 @@ describe('<WfsSearch />', () => {
     });
   });
 
-  describe('default #onSelect', () => {
-    it('zooms to the selected feature', (done) => {
-      expect.assertions(3);
-      jest.useFakeTimers();
-      //SETUP
-      const feature = {
-        type: 'Feature',
-        id: '752526',
-        properties: {
-          name: 'Peter',
-        },
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[[10, 40],[40, 40],[40, 10],[10, 10],[10, 40]]]
-        }
-      };
-      const map = new OlMap({
-        layers: [new OlLayerTile({name: 'OSM', source: new OlSourceOsm()})],
-        view: new OlView({
-          projection: 'EPSG:4326',
-          center: [37.40570, 8.81566],
-          zoom: 4
-        })
-      });
-      //SETUP END
+  // describe('default #onSelect', () => {
+  //   it('zooms to the selected feature', (done) => {
+  //     expect.assertions(3);
+  //     jest.useFakeTimers();
+  //     //SETUP
+  //     const feature = {
+  //       type: 'Feature',
+  //       id: '752526',
+  //       properties: {
+  //         name: 'Peter',
+  //       },
+  //       geometry: {
+  //         type: 'Polygon',
+  //         coordinates: [[[10, 40],[40, 40],[40, 10],[10, 10],[10, 40]]]
+  //       }
+  //     };
+  //     const map = new OlMap({
+  //       layers: [new OlLayerTile({name: 'OSM', source: new OlSourceOsm()})],
+  //       view: new OlView({
+  //         projection: 'EPSG:4326',
+  //         center: [37.40570, 8.81566],
+  //         zoom: 4
+  //       })
+  //     });
+  //     //SETUP END
 
-      const wrapper = TestUtil.mountComponent(WfsSearch, {map});
-      const fitSpy = jest.spyOn(map.getView(), 'fit');
-      wrapper.props().onSelect(feature, map);
-      expect(fitSpy).toHaveBeenCalled();
-      setTimeout(() => {
-        expect(map.getView().getCenter()).toEqual([25, 25]);
-        expect(map.getView().getZoom()).toEqual(2);
-        done();
-      }, 510);
-      jest.runAllTimers();
-      fitSpy.mockReset();
-      fitSpy.mockRestore();
-    });
-  });
+  //     const wrapper = TestUtil.mountComponent(WfsSearch, {map});
+  //     const fitSpy = jest.spyOn(map.getView(), 'fit');
+  //     wrapper.props().onSelect(feature, map);
+  //     expect(fitSpy).toHaveBeenCalled();
+  //     setTimeout(() => {
+  //       expect(map.getView().getCenter()).toEqual([25, 25]);
+  //       expect(map.getView().getZoom()).toEqual(2);
+  //       done();
+  //     }, 510);
+  //     jest.runAllTimers();
+  //     fitSpy.mockReset();
+  //     fitSpy.mockRestore();
+  //   });
+  // });
 
   describe('#renderOption', () => {
     it('returns a Select.Option', () => {
