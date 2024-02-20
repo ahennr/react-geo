@@ -26,7 +26,7 @@ interface ScaleComboProps {
    */
   resolutionsFilter: (item: any, index?: number, resolutions?: number[]) => boolean;
   /**
-   * Set to false to not listen to the map moveend event.
+   * Set to false not to listen to the map moveend event.
    */
   syncWithMap: boolean;
   /**

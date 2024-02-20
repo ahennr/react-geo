@@ -8,8 +8,6 @@ import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
 import * as React from 'react';
 
-import NominatimSearch from '../NominatimSearch/NominatimSearch';
-
 describe('<NominatimSearch />', () => {
   let map: OlMap;
 

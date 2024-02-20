@@ -1,7 +1,6 @@
 This example shows the usage of the MapComponent in combination with the MapContext.Provider.
 
 ```jsx
-import NominatimSearch from '@terrestris/react-geo/dist/Field/NominatimSearch/NominatimSearch';
 import MapComponent from '@terrestris/react-util/dist/Components/MapComponent/MapComponent';
 import MapContext from '@terrestris/react-util/dist/Context/MapContext/MapContext';
 import OlLayerTile from 'ol/layer/Tile';
@@ -33,8 +32,6 @@ const MapComponentExample = () => {
 
   return (
     <MapContext.Provider value={map}>
-      NominatimSearch:
-      <NominatimSearch map={map} />
       <MapComponent
         map={map}
         id={mapId}

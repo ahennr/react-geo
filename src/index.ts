@@ -18,7 +18,6 @@ import AddWmsPanel from './Container/AddWmsPanel/AddWmsPanel';
 import CoordinateInfo from './CoordinateInfo/CoordinateInfo';
 import FeatureLabelModal from './FeatureLabelModal/FeatureLabelModal';
 import CoordinateReferenceSystemCombo from './Field/CoordinateReferenceSystemCombo/CoordinateReferenceSystemCombo';
-import NominatimSearch from './Field/NominatimSearch/NominatimSearch';
 import ScaleCombo from './Field/ScaleCombo/ScaleCombo';
 import WfsSearch from './Field/WfsSearch/WfsSearch';
 import WfsSearchInput from './Field/WfsSearchInput/WfsSearchInput';
@@ -57,7 +56,6 @@ export {
   MeasureButton,
   ModifyButton,
   MultiLayerSlider,
-  NominatimSearch,
   PropertyGrid,
   ScaleCombo,
   SearchResultsPanel,
