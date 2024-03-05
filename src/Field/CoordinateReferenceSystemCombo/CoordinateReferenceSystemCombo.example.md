@@ -46,7 +46,7 @@ const predefinedCrsDefinitions = [{
 const CoordinateReferenceSystemComboExample = () => {
 
   const [map, setMap] = useState();
-  
+
   useEffect(() => {
     setMap(new OlMap({
       layers: [

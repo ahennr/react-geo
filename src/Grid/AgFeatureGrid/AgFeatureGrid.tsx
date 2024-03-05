@@ -3,10 +3,11 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-balham.css';
 
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
+import useMap from '@terrestris/react-util/dist/Hooks/useMap/useMap';
 import {
   CellMouseOutEvent,
   CellMouseOverEvent,
-  DetailGridInfo,
+  DetailGridInfo, GridApi,
   RowClickedEvent,
   RowNode,
   SelectionChangedEvent
@@ -30,7 +31,7 @@ import OlStyleCircle from 'ol/style/Circle';
 import OlStyleFill from 'ol/style/Fill';
 import OlStyleStroke from 'ol/style/Stroke';
 import OlStyle from 'ol/style/Style';
-import * as React from 'react';
+import React, { FC, useRef, useState } from 'react';
 import { Key } from 'react';
 
 import { CSS_PREFIX } from '../../constants';
@@ -142,10 +143,7 @@ interface OwnProps {
   onGridIsReady?: (grid: any) => void;
 }
 
-interface AgFeatureGridState {
-  grid: DetailGridInfo | null;
-  selectedRows: RowNode[];
-}
+const defaultClassName = `${CSS_PREFIX}ag-feature-grid`;
 
 export type AgFeatureGridProps = OwnProps & AgGridReactProps;
 
@@ -155,376 +153,369 @@ export type AgFeatureGridProps = OwnProps & AgGridReactProps;
  * @class The AgFeatureGrid
  * @extends React.Component
  */
-export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeatureGridState> {
-
-  /**
-   * The default properties.
-   */
-  static defaultProps = {
-    theme: 'ag-theme-balham',
-    height: 250,
-    features: [],
-    attributeBlacklist: [],
-    featureStyle: new OlStyle({
+export const AgFeatureGrid: FC<AgFeatureGridProps> = ({
+  theme = 'ag-theme-balham',
+  className,
+  height = 250,
+  features = [],
+  attributeBlacklist = [],
+  featureStyle = new OlStyle({
+    fill: new OlStyleFill({
+      color: 'rgba(255, 255, 255, 0.5)'
+    }),
+    stroke: new OlStyleStroke({
+      color: 'rgba(73, 139, 170, 0.9)',
+      width: 1
+    }),
+    image: new OlStyleCircle({
+      radius: 6,
       fill: new OlStyleFill({
         color: 'rgba(255, 255, 255, 0.5)'
       }),
       stroke: new OlStyleStroke({
         color: 'rgba(73, 139, 170, 0.9)',
         width: 1
-      }),
-      image: new OlStyleCircle({
-        radius: 6,
-        fill: new OlStyleFill({
-          color: 'rgba(255, 255, 255, 0.5)'
-        }),
-        stroke: new OlStyleStroke({
-          color: 'rgba(73, 139, 170, 0.9)',
-          width: 1
-        })
       })
+    })
+  }),
+  highlightStyle = new OlStyle({
+    fill: new OlStyleFill({
+      color: 'rgba(230, 247, 255, 0.8)'
     }),
-    highlightStyle: new OlStyle({
+    stroke: new OlStyleStroke({
+      color: 'rgba(73, 139, 170, 0.9)',
+      width: 1
+    }),
+    image: new OlStyleCircle({
+      radius: 6,
       fill: new OlStyleFill({
         color: 'rgba(230, 247, 255, 0.8)'
       }),
       stroke: new OlStyleStroke({
         color: 'rgba(73, 139, 170, 0.9)',
         width: 1
-      }),
-      image: new OlStyleCircle({
-        radius: 6,
-        fill: new OlStyleFill({
-          color: 'rgba(230, 247, 255, 0.8)'
-        }),
-        stroke: new OlStyleStroke({
-          color: 'rgba(73, 139, 170, 0.9)',
-          width: 1
-        })
       })
+    })
+  }),
+  selectStyle = new OlStyle({
+    fill: new OlStyleFill({
+      color: 'rgba(230, 247, 255, 0.8)'
     }),
-    selectStyle: new OlStyle({
+    stroke: new OlStyleStroke({
+      color: 'rgba(73, 139, 170, 0.9)',
+      width: 2
+    }),
+    image: new OlStyleCircle({
+      radius: 6,
       fill: new OlStyleFill({
         color: 'rgba(230, 247, 255, 0.8)'
       }),
       stroke: new OlStyleStroke({
         color: 'rgba(73, 139, 170, 0.9)',
         width: 2
-      }),
-      image: new OlStyleCircle({
-        radius: 6,
-        fill: new OlStyleFill({
-          color: 'rgba(230, 247, 255, 0.8)'
-        }),
-        stroke: new OlStyleStroke({
-          color: 'rgba(73, 139, 170, 0.9)',
-          width: 2
-        })
       })
-    }),
-    layerName: 'react-geo-feature-grid-layer',
-    columnDefs: {},
-    keyFunction: getUid,
-    zoomToExtent: false,
-    selectable: false
-  };
+    })
+  }),
+  layerName = 'react-geo-feature-grid-layer',
+  columnDefs = {},
+  keyFunction = getUid,
+  zoomToExtent = false,
+  selectable = false,
+  onRowClick,
+  onRowMouseOver,
+  onRowMouseOut,
+  onRowSelectionChange,
+  onGridIsReady = () => undefined,
+  width,
+  rowData,
+  ...passThroughProps
+}) => {
 
   /**
-   * The reference of this grid.
-   * @private
+   * The default properties.
    */
-  _ref: AgGridReact | null = null;
 
-  /**
-   * The className added to this component.
-   * @private
-   */
-  _className = `${CSS_PREFIX}ag-feature-grid`;
+  const [grid, setGrid] = useState<DetailGridInfo>(undefined);
+  const [selectedRows, setSelectedRows] = useState<RowNode[]>([]);
 
-  /**
-   * The source holding the features of the grid.
-   * @private
-   */
-  _source: OlSourceVector<OlFeature> | null = null;
+  const gridRef = useRef<AgGridReact>();
 
-  /**
-   * The layer representing the features of the grid.
-   * @private
-   */
-  _layer: OlLayerVector<OlSourceVector<OlFeature>> | null = null;
+  const map = useMap();
 
-  /**
-   * The constructor.
-   */
-  constructor(props: AgFeatureGridProps) {
-    super(props);
 
-    this.state = {
-      grid: null,
-      selectedRows: []
-    };
-  }
+  //
+  // /**
+  //  * The source holding the features of the grid.
+  //  * @private
+  //  */
+  // _source: OlSourceVector<OlFeature> | null = null;
+  //
+  // /**
+  //  * The layer representing the features of the grid.
+  //  * @private
+  //  */
+  // _layer: OlLayerVector<OlSourceVector<OlFeature>> | null = null;
 
-  /**
-   * Called on lifecycle phase componentDidMount.
-   */
-  componentDidMount() {
-    const {
-      map,
-      features,
-      zoomToExtent
-    } = this.props;
+  // /**
+  //  * Called on lifecycle phase componentDidMount.
+  //  */
+  // componentDidMount() {
+  //   const {
+  //     map,
+  //     features,
+  //     zoomToExtent
+  //   } = this.props;
+  //
+  //   if (!_isNil(map)) {
+  //     this.initVectorLayer(map);
+  //     this.initMapEventHandlers(map);
+  //     if (zoomToExtent) {
+  //       this.zoomToFeatures(features);
+  //     }
+  //   }
+  //
+  // }
+  //
+  // /**
+  //  * Invoked immediately after updating occurs. This method is not called for
+  //  * the initial render.
+  //  *
+  //  * @param prevProps The previous props.
+  //  */
+  // componentDidUpdate(prevProps: AgFeatureGridProps) {
+  //   const {
+  //     map,
+  //     features,
+  //     selectable,
+  //     zoomToExtent
+  //   } = this.props;
+  //
+  //   if (!(_isEqual(prevProps.map, map) && !_isNil(map))) {
+  //     this.initVectorLayer(map!);
+  //     this.initMapEventHandlers(map!);
+  //   }
+  //
+  //   if (!(_isEqual(prevProps.features, features))) {
+  //     if (this._source) {
+  //       this._source.clear();
+  //       this._source.addFeatures(features);
+  //     }
+  //
+  //     if (zoomToExtent && !_isNil(map)) {
+  //       this.zoomToFeatures(features);
+  //     }
+  //   }
+  //
+  //   if (!(_isEqual(prevProps.selectable, selectable))) {
+  //     if (selectable && map) {
+  //       map.on('singleclick', this.onMapSingleClick);
+  //     } else {
+  //       if (map) {
+  //         map.un('singleclick', this.onMapSingleClick);
+  //       }
+  //     }
+  //   }
+  // }
+  //
+  // /**
+  //  * Called on lifecycle phase componentWillUnmount.
+  //  */
+  // componentWillUnmount() {
+  //   if (!_isNil(this.props.map)) {
+  //     this.deinitVectorLayer();
+  //     this.deinitMapEventHandlers();
+  //   }
+  // }
 
-    if (!_isNil(map)) {
-      this.initVectorLayer(map);
-      this.initMapEventHandlers(map);
-      if (zoomToExtent) {
-        this.zoomToFeatures(features);
-      }
-    }
+  // /**
+  //  * Initialized the vector layer that will be used to draw the input features
+  //  * on and adds it to the map (if any).
+  //  *
+  //  * @param map The map to add the layer to.
+  //  */
+  // initVectorLayer = (map: OlMap) => {
+  //   const {
+  //     features,
+  //     featureStyle,
+  //     layerName
+  //   } = this.props;
+  //
+  //   if (MapUtil.getLayerByName(map, layerName)) {
+  //     return;
+  //   }
+  //
+  //   const source = new OlSourceVector({
+  //     features: features
+  //   });
+  //
+  //   const layer = new OlLayerVector({
+  //     properties: {
+  //       name: layerName,
+  //     },
+  //     source: source,
+  //     style: featureStyle
+  //   });
+  //
+  //   map.addLayer(layer);
+  //
+  //   this._source = source;
+  //   this._layer = layer;
+  // };
 
-  }
+  // /**
+  //  * Adds map event callbacks to highlight and select features in the map (if
+  //  * given) on pointermove and singleclick. Hovered and selected features will
+  //  * be highlighted and selected in the grid as well.
+  //  *
+  //  * @param map The map to register the handlers to.
+  //  */
+  // initMapEventHandlers = (map: OlMap) => {
+  //   const {
+  //     selectable
+  //   } = this.props;
+  //
+  //   map.on('pointermove', this.onMapPointerMove);
+  //
+  //   if (selectable) {
+  //     map.on('singleclick', this.onMapSingleClick);
+  //   }
+  // };
+  //
+  // /**
+  //  * Highlights the feature beneath the cursor on the map and in the grid.
+  //  *
+  //  * @param olEvt The ol event.
+  //  */
+  // onMapPointerMove = (olEvt: any) => {
+  //   const {
+  //     map,
+  //     features,
+  //     highlightStyle,
+  //     selectStyle
+  //   } = this.props;
+  //
+  //   const {
+  //     grid
+  //   } = this.state;
+  //
+  //   if (!grid || !grid.api || _isNil(map)) {
+  //     return;
+  //   }
+  //
+  //   const selectedRowKeys = this.getSelectedRowKeys();
+  //
+  //   const highlightFeatures = (map.getFeaturesAtPixel(olEvt.pixel, {
+  //     layerFilter: layerCand => layerCand === this._layer
+  //   }) || []) as OlFeature<OlGeometry>[];
+  //
+  //   grid.api?.forEachNode((n) => {
+  //     n.setHighlighted(null);
+  //   });
+  //
+  //   features
+  //     .filter((f): f is OlFeature => !_isNil(f))
+  //     .forEach(feature => {
+  //       const key = this.props.keyFunction(feature);
+  //
+  //       if (selectedRowKeys.includes(key)) {
+  //         feature.setStyle(selectStyle);
+  //       } else {
+  //         feature.setStyle(undefined);
+  //       }
+  //     });
+  //
+  //   highlightFeatures
+  //     .filter((f): f is OlFeature => !_isNil(f))
+  //     .forEach(feat => {
+  //       const key = this.props.keyFunction(feat);
+  //       grid.api?.forEachNode((n) => {
+  //         if (n.data.key === key) {
+  //           n.setHighlighted(1);
+  //           feat.setStyle(highlightStyle);
+  //         }
+  //       });
+  //     });
+  // };
 
-  /**
-   * Invoked immediately after updating occurs. This method is not called for
-   * the initial render.
-   *
-   * @param prevProps The previous props.
-   */
-  componentDidUpdate(prevProps: AgFeatureGridProps) {
-    const {
-      map,
-      features,
-      selectable,
-      zoomToExtent
-    } = this.props;
-
-    if (!(_isEqual(prevProps.map, map) && !_isNil(map))) {
-      this.initVectorLayer(map!);
-      this.initMapEventHandlers(map!);
-    }
-
-    if (!(_isEqual(prevProps.features, features))) {
-      if (this._source) {
-        this._source.clear();
-        this._source.addFeatures(features);
-      }
-
-      if (zoomToExtent && !_isNil(map)) {
-        this.zoomToFeatures(features);
-      }
-    }
-
-    if (!(_isEqual(prevProps.selectable, selectable))) {
-      if (selectable && map) {
-        map.on('singleclick', this.onMapSingleClick);
-      } else {
-        if (map) {
-          map.un('singleclick', this.onMapSingleClick);
-        }
-      }
-    }
-  }
-
-  /**
-   * Called on lifecycle phase componentWillUnmount.
-   */
-  componentWillUnmount() {
-    if (!_isNil(this.props.map)) {
-      this.deinitVectorLayer();
-      this.deinitMapEventHandlers();
-    }
-  }
-
-  /**
-   * Initialized the vector layer that will be used to draw the input features
-   * on and adds it to the map (if any).
-   *
-   * @param map The map to add the layer to.
-   */
-  initVectorLayer = (map: OlMap) => {
-    const {
-      features,
-      featureStyle,
-      layerName
-    } = this.props;
-
-    if (MapUtil.getLayerByName(map, layerName)) {
-      return;
-    }
-
-    const source = new OlSourceVector({
-      features: features
-    });
-
-    const layer = new OlLayerVector({
-      properties: {
-        name: layerName,
-      },
-      source: source,
-      style: featureStyle
-    });
-
-    map.addLayer(layer);
-
-    this._source = source;
-    this._layer = layer;
-  };
-
-  /**
-   * Adds map event callbacks to highlight and select features in the map (if
-   * given) on pointermove and singleclick. Hovered and selected features will
-   * be highlighted and selected in the grid as well.
-   *
-   * @param map The map to register the handlers to.
-   */
-  initMapEventHandlers = (map: OlMap) => {
-    const {
-      selectable
-    } = this.props;
-
-    map.on('pointermove', this.onMapPointerMove);
-
-    if (selectable) {
-      map.on('singleclick', this.onMapSingleClick);
-    }
-  };
-
-  /**
-   * Highlights the feature beneath the cursor on the map and in the grid.
-   *
-   * @param olEvt The ol event.
-   */
-  onMapPointerMove = (olEvt: any) => {
-    const {
-      map,
-      features,
-      highlightStyle,
-      selectStyle
-    } = this.props;
-
-    const {
-      grid
-    } = this.state;
-
-    if (!grid || !grid.api || _isNil(map)) {
-      return;
-    }
-
-    const selectedRowKeys = this.getSelectedRowKeys();
-
-    const highlightFeatures = (map.getFeaturesAtPixel(olEvt.pixel, {
-      layerFilter: layerCand => layerCand === this._layer
-    }) || []) as OlFeature<OlGeometry>[];
-
-    grid.api?.forEachNode((n) => {
-      n.setHighlighted(null);
-    });
-
-    features
-      .filter((f): f is OlFeature => !_isNil(f))
-      .forEach(feature => {
-        const key = this.props.keyFunction(feature);
-
-        if (selectedRowKeys.includes(key)) {
-          feature.setStyle(selectStyle);
-        } else {
-          feature.setStyle(undefined);
-        }
-      });
-
-    highlightFeatures
-      .filter((f): f is OlFeature => !_isNil(f))
-      .forEach(feat => {
-        const key = this.props.keyFunction(feat);
-        grid.api?.forEachNode((n) => {
-          if (n.data.key === key) {
-            n.setHighlighted(1);
-            feat.setStyle(highlightStyle);
-          }
-        });
-      });
-  };
-
-  /**
-   * Selects the selected feature in the map and in the grid.
-   *
-   * @param olEvt The ol event.
-   */
-  onMapSingleClick = (olEvt: OlMapBrowserEvent<MouseEvent>) => {
-    const {
-      map,
-      selectStyle,
-      onMapSingleClick
-    } = this.props;
-
-    if (_isNil(map)) {
-      return;
-    }
-
-    const selectedRowKeys = this.getSelectedRowKeys();
-
-    const selectedFeatures = (map.getFeaturesAtPixel(olEvt.pixel, {
-      layerFilter: (layerCand: OlLayerBase) => layerCand === this._layer
-    }) || []) as OlFeature<OlGeometry>[];
-
-    if (_isFunction(onMapSingleClick)) {
-      onMapSingleClick(olEvt, selectedFeatures);
-    }
-
-    selectedFeatures.forEach(selectedFeature => {
-      const key = this.props.keyFunction(selectedFeature);
-      if (selectedRowKeys && selectedRowKeys.includes(key)) {
-        selectedFeature.setStyle(undefined);
-
-        const node = this.getRowFromFeatureKey(key);
-        if (node) {
-          node.setSelected(false);
-        }
-      } else {
-        selectedFeature.setStyle(selectStyle);
-
-        const node = this.getRowFromFeatureKey(key);
-        if (node) {
-          node.setSelected(true);
-        }
-      }
-    });
-  };
-
-  /**
-   * Removes the vector layer from the given map (if any).
-   */
-  deinitVectorLayer = () => {
-    const {
-      map
-    } = this.props;
-
-    if (_isNil(this._layer) || _isNil(map)) {
-      return;
-    }
-
-    map.removeLayer(this._layer);
-  };
-
-  /**
-   * Unbinds the pointermove and click event handlers from the map (if given).
-   */
-  deinitMapEventHandlers = () => {
-    const {
-      map,
-      selectable
-    } = this.props;
-
-    if (!_isNil(map)) {
-      map.un('pointermove', this.onMapPointerMove);
-
-      if (selectable) {
-        map.un('singleclick', this.onMapSingleClick);
-      }
-    }
-
-  };
+  // /**
+  //  * Selects the selected feature in the map and in the grid.
+  //  *
+  //  * @param olEvt The ol event.
+  //  */
+  // onMapSingleClick = (olEvt: OlMapBrowserEvent<MouseEvent>) => {
+  //   const {
+  //     map,
+  //     selectStyle,
+  //     onMapSingleClick
+  //   } = this.props;
+  //
+  //   if (_isNil(map)) {
+  //     return;
+  //   }
+  //
+  //   const selectedRowKeys = this.getSelectedRowKeys();
+  //
+  //   const selectedFeatures = (map.getFeaturesAtPixel(olEvt.pixel, {
+  //     layerFilter: (layerCand: OlLayerBase) => layerCand === this._layer
+  //   }) || []) as OlFeature<OlGeometry>[];
+  //
+  //   if (_isFunction(onMapSingleClick)) {
+  //     onMapSingleClick(olEvt, selectedFeatures);
+  //   }
+  //
+  //   selectedFeatures.forEach(selectedFeature => {
+  //     const key = this.props.keyFunction(selectedFeature);
+  //     if (selectedRowKeys && selectedRowKeys.includes(key)) {
+  //       selectedFeature.setStyle(undefined);
+  //
+  //       const node = this.getRowFromFeatureKey(key);
+  //       if (node) {
+  //         node.setSelected(false);
+  //       }
+  //     } else {
+  //       selectedFeature.setStyle(selectStyle);
+  //
+  //       const node = this.getRowFromFeatureKey(key);
+  //       if (node) {
+  //         node.setSelected(true);
+  //       }
+  //     }
+  //   });
+  // };
+  //
+  // /**
+  //  * Removes the vector layer from the given map (if any).
+  //  */
+  // deinitVectorLayer = () => {
+  //   const {
+  //     map
+  //   } = this.props;
+  //
+  //   if (_isNil(this._layer) || _isNil(map)) {
+  //     return;
+  //   }
+  //
+  //   map.removeLayer(this._layer);
+  // };
+  //
+  // /**
+  //  * Unbinds the pointermove and click event handlers from the map (if given).
+  //  */
+  // deinitMapEventHandlers = () => {
+  //   const {
+  //     map,
+  //     selectable
+  //   } = this.props;
+  //
+  //   if (!_isNil(map)) {
+  //     map.un('pointermove', this.onMapPointerMove);
+  //
+  //     if (selectable) {
+  //       map.un('singleclick', this.onMapSingleClick);
+  //     }
+  //   }
+  //
+  // };
 
   /**
    * Returns the column definitions out of the attributes of the first
@@ -532,19 +523,13 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    *
    * @return The column definitions.
    */
-  getColumnDefs = () => {
-    const {
-      attributeBlacklist,
-      features,
-      columnDefs,
-      selectable
-    } = this.props;
-
+  const getColumnDefs = () => {
     const columns: any[] = [];
     if (features.length < 1) {
       return;
     }
 
+    // assumption: all features in array have the same structure
     const feature = features[0];
 
     const props = feature.getProperties();
@@ -592,16 +577,12 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
   };
 
   /**
-   * Returns the table row data from all of the given features.
+   * Returns the table row data from all the given features.
    *
    * @return The table data.
    */
-  getRowData = () => {
-    const {
-      features
-    } = this.props;
-
-    return features.map(feature => {
+  const getRowData = () => {
+    return features?.map(feature => {
       const properties = feature.getProperties();
       const filtered = Object.keys(properties)
         .filter(key => !(properties[key] instanceof OlGeometry))
@@ -611,7 +592,7 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
         }, {});
 
       return {
-        key: this.props.keyFunction(feature),
+        key: keyFunction(feature),
         ...filtered
       };
     });
@@ -623,14 +604,8 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    * @param key The row key to obtain the feature from.
    * @return The feature candidate.
    */
-  getFeatureFromRowKey = (key: Key): OlFeature<OlGeometry> => {
-    const {
-      features,
-      keyFunction
-    } = this.props;
-
+  const getFeatureFromRowKey = (key: Key): OlFeature<OlGeometry> => {
     const feature = features.filter(f => keyFunction(f) === key);
-
     return feature[0];
   };
 
@@ -640,14 +615,10 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    * @param key The feature's key to obtain the row from.
    * @return he row candidate.
    */
-  getRowFromFeatureKey = (key: string): RowNode | undefined => {
-    const {
-      grid
-    } = this.state;
-
+  const getRowFromFeatureKey = (key: string): RowNode | undefined => {
     let rowNode: RowNode | undefined = undefined;
 
-    if (!grid || !grid.api) {
+    if (_isNil(grid?.api)) {
       return;
     }
 
@@ -665,37 +636,28 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    *
    * @return An array with the selected row keys.
    */
-  getSelectedRowKeys = (): string[] => {
-    const {
-      grid
-    } = this.state;
-
-    if (!grid || !grid.api) {
+  const getSelectedRowKeys = (): string[] => {
+    if (_isNil(grid?.api)) {
       return [];
     }
 
     const selectedRows = grid.api.getSelectedRows();
-
     return selectedRows.map(row => row.key);
   };
 
   /**
-   * Called on row click and zooms the the corresponding feature's extent.
+   * Called on row click and zooms the corresponding feature's extent.
    *
    * @param evt The RowClickedEvent.
    */
-  onRowClick = (evt: RowClickedEvent) => {
-    const {
-      onRowClick
-    } = this.props;
-
+  const onRowClickInner = (evt: RowClickedEvent) => {
     const row = evt.data;
-    const feature = this.getFeatureFromRowKey(row.key);
+    const feature = getFeatureFromRowKey(row.key);
 
     if (_isFunction(onRowClick)) {
       onRowClick(row, feature, evt);
     } else {
-      this.zoomToFeatures([feature]);
+      zoomToFeatures([feature]);
     }
   };
 
@@ -705,19 +667,15 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    *
    * @param evt The ellMouseOverEvent.
    */
-  onRowMouseOver = (evt: CellMouseOverEvent) => {
-    const {
-      onRowMouseOver
-    } = this.props;
-
+  const onRowMouseOverInner = (evt: CellMouseOverEvent) => {
     const row = evt.data;
-    const feature = this.getFeatureFromRowKey(row.key);
+    const feature = getFeatureFromRowKey(row.key);
 
     if (_isFunction(onRowMouseOver)) {
       onRowMouseOver(row, feature, evt);
     }
 
-    this.highlightFeatures([feature]);
+    highlightFeatures([feature]);
   };
 
   /**
@@ -725,19 +683,15 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    *
    * @param evt The CellMouseOutEvent.
    */
-  onRowMouseOut = (evt: CellMouseOutEvent) => {
-    const {
-      onRowMouseOut
-    } = this.props;
-
+  const onRowMouseOutInner = (evt: CellMouseOutEvent) => {
     const row = evt.data;
-    const feature = this.getFeatureFromRowKey(row.key);
+    const feature = getFeatureFromRowKey(row.key);
 
     if (_isFunction(onRowMouseOut)) {
       onRowMouseOut(row, feature, evt);
     }
 
-    this.unhighlightFeatures([feature]);
+    unhighlightFeatures([feature]);
   };
 
   /**
@@ -745,10 +699,7 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    *
    * @param features The features to zoom to.
    */
-  zoomToFeatures = (features: OlFeature<OlGeometry>[]) => {
-    const {
-      map
-    } = this.props;
+  const zoomToFeatures = (features: OlFeature<OlGeometry>[]) => {
 
     if (_isNil(map)) {
       return;
@@ -769,11 +720,7 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    *
    * @param highlightFeatures The features to highlight.
    */
-  highlightFeatures = (highlightFeatures: OlFeature<OlGeometry>[]) => {
-    const {
-      highlightStyle
-    } = this.props;
-
+  const highlightFeatures = (highlightFeatures: OlFeature<OlGeometry>[]) => {
     highlightFeatures
       .filter((f): f is OlFeature => !_isNil(f))
       .forEach(feature => feature.setStyle(highlightStyle));
@@ -784,16 +731,13 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    *
    * @param unhighlightFeatures The features to unhighlight.
    */
-  unhighlightFeatures = (unhighlightFeatures: OlFeature<OlGeometry>[]) => {
-    const {
-      selectStyle
-    } = this.props;
-    const selectedRowKeys = this.getSelectedRowKeys();
+  const unhighlightFeatures = (unhighlightFeatures: OlFeature<OlGeometry>[]) => {
+    const selectedRowKeys = getSelectedRowKeys();
 
     unhighlightFeatures
       .filter((f): f is OlFeature => !_isNil(f))
       .forEach(feature => {
-        const key = this.props.keyFunction(feature);
+        const key = keyFunction(feature);
         if (selectedRowKeys && selectedRowKeys.includes(key)) {
           feature.setStyle(selectStyle);
         } else {
@@ -807,11 +751,7 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
    *
    * @param features The features to select.
    */
-  selectFeatures = (features: OlFeature<OlGeometry>[]) => {
-    const {
-      selectStyle
-    } = this.props;
-
+  const selectFeatures = (features: OlFeature<OlGeometry>[]) => {
     features.forEach(feature => {
       if (feature) {
         feature.setStyle(selectStyle);
@@ -822,29 +762,16 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
   /**
    * Resets the style of all features.
    */
-  resetFeatureStyles = () => {
-    const {
-      features
-    } = this.props;
-
+  const resetFeatureStyles = () => {
     features.forEach(feature => feature.setStyle(undefined));
   };
 
   /**
    * Called if the selection changes.
    */
-  onSelectionChanged = (evt: SelectionChangedEvent) => {
-    const {
-      onRowSelectionChange
-    } = this.props;
-
-    const {
-      grid,
-      selectedRows
-    } = this.state;
-
+  const onSelectionChanged = (evt: SelectionChangedEvent) => {
     let selectedRowsAfter: RowNode[];
-    if (!grid || !grid.api) {
+    if (_isNil(grid?.api)) {
       selectedRowsAfter = evt.api.getSelectedRows();
     } else {
       selectedRowsAfter = grid.api.getSelectedRows();
@@ -854,106 +781,75 @@ export class AgFeatureGrid extends React.Component<AgFeatureGridProps, AgFeature
       selectedRowsAfter, (a: RowNode, b: RowNode) => a.key === b.key);
 
     const selectedFeatures = selectedRowsAfter.flatMap(row => {
-      return row.key ? [this.getFeatureFromRowKey(row.key)] : [];
+      return row.key ? [getFeatureFromRowKey(row.key)] : [];
     });
     const deselectedFeatures = deselectedRows.flatMap(row => {
-      return row.key ? [this.getFeatureFromRowKey(row.key)] : [];
+      return row.key ? [getFeatureFromRowKey(row.key)] : [];
     });
 
     // update state
-    this.setState({
-      selectedRows: selectedRowsAfter
-    });
+    setSelectedRows(selectedRowsAfter);
 
     if (_isFunction(onRowSelectionChange)) {
       onRowSelectionChange(selectedRowsAfter, selectedFeatures, deselectedRows, deselectedFeatures, evt);
     }
 
-    this.resetFeatureStyles();
-    this.selectFeatures(selectedFeatures);
+    resetFeatureStyles();
+    selectFeatures(selectedFeatures);
   };
 
   /**
    *
    * @param grid
    */
-  onGridReady(grid: any) {
-    this.setState({
-      grid
-    }, this.onVisiblityChange);
-
-    if (this.props.onGridIsReady) {
-      this.props.onGridIsReady(grid);
+  const onGridReady = (grid: DetailGridInfo) => {
+    if (!_isNil(grid)) {
+      setGrid(grid);
+      onVisiblityChange();
+      onGridIsReady(grid);
     }
-  }
+  };
 
   /**
    *
    */
-  onVisiblityChange() {
-    if (this.state.grid) {
-      this.state.grid.api?.sizeColumnsToFit();
+  const onVisiblityChange = () => {
+    if (!_isNil(grid)) {
+      grid.api?.sizeColumnsToFit();
     }
-  }
+  };
 
-  /**
-   * The render method.
-   */
-  render() {
-    const {
-      className,
-      height,
-      width,
-      theme,
-      features,
-      map,
-      attributeBlacklist,
-      onRowClick,
-      onRowMouseOver,
-      onRowMouseOut,
-      zoomToExtent,
-      selectable,
-      featureStyle,
-      highlightStyle,
-      selectStyle,
-      layerName,
-      columnDefs,
-      children,
-      rowData,
-      ...passThroughProps
-    } = this.props;
+  const finalClassName = className
+    ? `${className} ${defaultClassName} ${theme}`
+    : `${defaultClassName} ${theme}`;
 
-    const finalClassName = className
-      ? `${className} ${this._className} ${theme}`
-      : `${this._className} ${theme}`;
-
-    return (
-      <div
-        className={finalClassName}
-        // TODO: move to less?!
-        style={{
-          height: height,
-          width: width
-        }}
+  return (
+    <div
+      className={finalClassName}
+      // TODO: move to less?!
+      style={{
+        height: height,
+        width: width
+      }}
+    >
+      <AgGridReact
+        columnDefs={columnDefs && _isArray(columnDefs) ? columnDefs : getColumnDefs()}
+        rowData={rowData && _isArray(rowData) ? rowData : getRowData()}
+        rowSelection="multiple"
+        suppressRowClickSelection={true}
+        onSelectionChanged={this.onSelectionChanged.bind(this)}
+        onRowClicked={onRowClickInner}
+        onCellMouseOver={onRowMouseOverInner}
+        onCellMouseOut={onRowMouseOutInner}
+        onGridReady={onGridReady}
+        ref={gridRef}
+        {...passThroughProps}
       >
-        <AgGridReact
-          columnDefs={columnDefs && _isArray(columnDefs) ? columnDefs : this.getColumnDefs()}
-          rowData={rowData && _isArray(rowData) ? rowData : this.getRowData()}
-          onGridReady={this.onGridReady.bind(this)}
-          rowSelection="multiple"
-          suppressRowClickSelection={true}
-          onSelectionChanged={this.onSelectionChanged.bind(this)}
-          onRowClicked={this.onRowClick.bind(this)}
-          onCellMouseOver={this.onRowMouseOver.bind(this)}
-          onCellMouseOut={this.onRowMouseOut.bind(this)}
-          ref={ref => this._ref = ref}
-          {...passThroughProps}
-        >
-          {children}
-        </AgGridReact>
-      </div>
-    );
-  }
-}
+        {children}
+      </AgGridReact>
+    </div>
+  );
+
+};
 
 export default AgFeatureGrid;
