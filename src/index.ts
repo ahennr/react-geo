@@ -11,6 +11,7 @@ export { ToggleButton } from './Button/ToggleButton/ToggleButton';
 export { ToggleGroup } from './Button/ToggleGroup/ToggleGroup';
 export { default as UploadButton } from './Button/UploadButton/UploadButton';
 export { default as ZoomButton } from './Button/ZoomButton/ZoomButton';
+export { default as PrintButton } from './Button/PrintButton/PrintButton';
 export { default as ZoomToExtentButton } from './Button/ZoomToExtentButton/ZoomToExtentButton';
 export { CircleMenu } from './CircleMenu/CircleMenu';
 export { AddWmsLayerEntry } from './Container/AddWmsPanel/AddWmsLayerEntry/AddWmsLayerEntry';

@@ -14,17 +14,19 @@ import SimpleButton, {
 } from '../SimpleButton/SimpleButton';
 
 interface OwnProps {
-  onProgressChange?: (val: number) => void;
-  outputFileName?: string;
-  format?: 'png' | 'pdf';
+  attributions?: InkmapPrintSpec['attributions'];
   dpi?: number;
+  format?: 'png' | 'pdf';
+  legendTitle?: string;
   mapSize: InkmapPrintSpec['size'];
   northArrow?: InkmapPrintSpec['northArrow'];
-  attributions?: InkmapPrintSpec['attributions'];
+  onAfterPrint?: () => void;
+  onBeforePrint?: () => void;
+  onProgressChange?: (val: number) => void;
+  outputFileName?: string;
+  pdfPrintFunc?: (mapImgUrl: string, pdfSpec: any, title: string, legendTitle: string) => Promise<jsPDF>;
   scaleBar?: InkmapPrintSpec['scaleBar'];
   title?: string;
-  legendTitle?: string;
-  pdfPrintFunc?: (mapImgUrl: string, pdfSpec: any, title: string, legendTitle: string) => Promise<jsPDF>;
 }
 
 export type PrintButtonProps = OwnProps & SimpleButtonProps;
@@ -39,6 +41,8 @@ const PrintButton: React.FC<PrintButtonProps> = ({
   dpi = 120,
   onProgressChange,
   outputFileName = 'react-geo-image',
+  onAfterPrint = () => undefined,
+  onBeforePrint = () => undefined,
   mapSize,
   format = 'png',
   title = 'Print',
@@ -54,6 +58,9 @@ const PrintButton: React.FC<PrintButtonProps> = ({
     if (!map) {
       return;
     }
+
+    onBeforePrint();
+
     if (format === 'png') {
       setLoading(true);
       await PrintUtil.printPng(
@@ -87,6 +94,8 @@ const PrintButton: React.FC<PrintButtonProps> = ({
     } else {
       Logger.error('Error while creating the printout, missing `pdfPrintFunc` property');
     }
+
+    onAfterPrint();
   };
 
   if (!map) {
